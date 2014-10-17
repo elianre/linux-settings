@@ -24,6 +24,9 @@ sudo apt-get install shutter
 
 sudo cp `pwd`/vimrc.local /etc/vim/vimrc.local
 git clone https://github.com/gmarik/vundle.git ~/.vim/bundle/vundle
+sudo apt-get install vim-addon-manager
+sudo apt-get install vim-gocomplete gocode vim-syntax-go
+vim-addon-manager install go-syntax gocode
 
 git config --global user.email "renliang87@gmail.com"
 git config --global user.name "elianre"
