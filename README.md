@@ -1,4 +1,4 @@
 linux-settings
 ==============
 
-My Linux setings backup
+My Linux setings backup & some learning code
