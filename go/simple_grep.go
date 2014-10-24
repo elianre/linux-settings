@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 )
 
 type GrepOptions struct {
@@ -75,15 +76,21 @@ func (rb *RingBuffer) Extend(src *RingBuffer) {
 		return
 	}
 
+	j := 0
 	for i := src.start; ; {
 		rb.AddLine(src.content[i], src.index[i])
 		i++
+		j++
 		if i == src.end || i == src.count {
 			break
 		}
 
 		if i == src.size {
 			i = 0
+		}
+
+		if src.size != 0 && j >= src.size {
+			break
 		}
 	}
 }
@@ -132,6 +139,10 @@ func Grep(matchRegx string, file string, options GrepOptions) (status bool, matc
 	}
 	defer fh.Close()
 
+	if options.ignoreCase == true && options.fixedStrings == false {
+		matchRegx = fmt.Sprintf("(?i)%s", matchRegx)
+	}
+
 	matched := new(RingBuffer)
 	matched.Init(0)
 
@@ -147,11 +158,20 @@ func Grep(matchRegx string, file string, options GrepOptions) (status bool, matc
 	s, e := Readln(r)
 	for e == nil {
 		i++
-		ret, _ := regexp.MatchString(matchRegx, s)
-		// handle the color of matched part
-		if ret == true && options.colorize == true {
+
+		ret := false
+		if options.fixedStrings == true {
+			ret = strings.Contains(s, matchRegx)
+			if ret == true && options.colorize == true {
+				s = strings.Replace(s, matchRegx, fmt.Sprintf("%c[0;31m%s%c[0m", 27, matchRegx, 27), -1)
+			}
+		} else {
 			re := regexp.MustCompile(matchRegx)
-			s = re.ReplaceAllStringFunc(s, ColorizeMatched)
+			ret = re.MatchString(s)
+			// handle the color of matched part
+			if ret == true && options.colorize == true {
+				s = re.ReplaceAllStringFunc(s, ColorizeMatched)
+			}
 		}
 
 		// handle the line number
@@ -221,8 +241,8 @@ func ColorizeMatched(str string) (result string) {
 }
 
 func main() {
-	options := GrepOptions{false, false, true, false, 8, 8}
-	ret, _ := Grep("Initializing", "/var/log/dmesg", options)
+	options := GrepOptions{true, true, true, true, 8, 8}
+	ret, _ := Grep("3.13.0", "/var/log/dmesg", options)
 	if ret != true {
 		os.Exit(1)
 	}
