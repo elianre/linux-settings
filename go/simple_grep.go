@@ -1,15 +1,24 @@
 // Linux grep golang version!
 // A simple product while I was learning how to program with golang. Just for fun!
 // Author: renliang87@gmail.com
+
+//How to build: go tool cgo simple_grep.go
+//              go build simple_grep.go
 package main
+
+//#include <unistd.h>
+import "C"
 
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 )
 
 type GrepOptions struct {
@@ -241,8 +250,39 @@ func ColorizeMatched(str string) (result string) {
 }
 
 func main() {
-	options := GrepOptions{true, true, true, true, 8, 8}
-	ret, _ := Grep("3.13.0", "/var/log/dmesg", options)
+	ignoreCase := flag.Bool("i", false, "ignore case distinctions")
+	fixedStrings := flag.Bool("F", false, "PATTERN is a set of newline-separated fixed strings")
+	lineNumber := flag.Bool("n", false, "print line number with output lines")
+	color := flag.String("color", "auto", "use markers to highlight the matching strings. value could be 'always', 'never', or 'auto'")
+	beforeContext := flag.Int("B", 0, "print NUM lines of leading context")
+	afterContext := flag.Int("A", 0, "print NUM lines of trailing context")
+	flag.Parse()
+	//fmt.Println(*ignoreCase, " ", *fixedStrings, " ", *lineNumber, " ", *color, " ", *beforeContext, " ", *afterContext)
+	help := func(f *flag.Flag) {
+		fn := *f
+		fmt.Printf("  -%s=%s: %s\n", fn.Name, fn.DefValue, fn.Usage)
+	}
+	if len(flag.Args()) < 2 {
+		fmt.Println("ERROR: Wrong options!")
+		fmt.Printf("Usage: %s [OPTION] [...] REGX FILE\n", filepath.Base(os.Args[0]))
+		flag.VisitAll(help)
+		os.Exit(1)
+	}
+	regx := flag.Args()[0]
+	file := flag.Args()[1]
+
+	colorize := true
+	if strings.EqualFold(*color, "never") {
+		colorize = false
+	} else if strings.EqualFold(*color, "auto") {
+		if int(C.isatty(C.int(syscall.Stdout))) == 0 {
+			colorize = false
+		}
+	}
+
+	options := GrepOptions{*ignoreCase, *fixedStrings, *lineNumber, colorize, *beforeContext, *afterContext}
+	//ret, _ := Grep("3.13.0", "/var/log/dmesg", options)
+	ret, _ := Grep(regx, file, options)
 	if ret != true {
 		os.Exit(1)
 	}
